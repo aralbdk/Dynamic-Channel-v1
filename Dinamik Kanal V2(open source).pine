@@ -1,0 +1,420 @@
+indicator("✅ ARAL ÖMER ARSLAN - DİNAMİK KANAL V2 ✅", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=1000)
+
+// --- 1. AYARLAR ---
+groupInput     = input.string("ÖMER", "Hisse Grubu Seç", options=["XYLDZ 1", "XYLDZ 2", "XYLDZ 3", "XYLDZ 4", "XYLDZ 5", "XYLDZ 6", "XYLDZ 7", "ANA 1", "ANA 2", "ANA 3", "ANA 4", "ÖMER"])
+fibo_lookback  = input.int(400, "Geriye Bakış (Fibo & VWAP)", minval=50)
+radar_lookback = input.int(3, "Radar Mum Tarama Sayısı", minval=1, maxval=100)
+offset_x       = input.int(25, "Radar Sağa Uzaklık")
+
+// Dinamik Mum Kanalı Ayarları
+show_candle_channel = input.bool(true, "Dinamik Mum Kanalını Göster", group="Yeni Özellik: Mum Kanalı")
+channel_color       = input.color(color.new(#9c27b0, 85), "Aktif Kanal Dolgu", group="Yeni Özellik: Mum Kanalı")
+channel_border_color= input.color(color.new(#9c27b0, 40), "Aktif Kanal Çerçeve/Fiyat", group="Yeni Özellik: Mum Kanalı")
+upper_pred_color    = input.color(color.new(color.red, 70), "Üst Öngörü Kanal Rengi", group="Yeni Özellik: Mum Kanalı")
+lower_pred_color    = input.color(color.new(color.green, 70), "Alt Öngörü Kanal Rengi", group="Yeni Özellik: Mum Kanalı")
+
+// Öngörü Yazı Renkleri
+upper_txt_color     = input.color(color.red, "Üst Öngörü Yazı Rengi", group="Yeni Özellik: Mum Kanalı")
+lower_txt_color     = input.color(color.green, "Alt Öngörü Yazı Rengi", group="Yeni Özellik: Mum Kanalı")
+
+// Destek Direnç Ayarları
+pp_period      = input.int(20, "D&D Hassasiyeti (Pivot)", minval=5, group="Destek & Direnç")
+show_labels    = input.bool(true, "Fiyat Etiketlerini Göster", group="Destek & Direnç")
+tp_min_dist    = input.float(1.5, "Hedefler Arası Min Mesafe (%)", minval=0.1, step=0.1, group="Destek & Direnç") / 100 + 1
+
+// Wave Trend Girdileri
+n1 = input.int(10, "WT Kanal Periyodu", group="Wave Trend Ayarları")
+n2 = input.int(21, "WT Ortalama Periyodu", group="Wave Trend Ayarları")
+obLevel = input.float(60, "Aşırı Alım Eşiği", group="Wave Trend Ayarları")
+osLevel = input.float(-60, "Aşırı Satım Eşiği", group="Wave Trend Ayarları")
+
+// MACD Girdileri
+fast_length = input.int(12, "MACD Hızlı", group="MACD Ayarları")
+slow_length = input.int(26, "MACD Yavaş", group="MACD Ayarları")
+signal_smoothing = input.int(9, "MACD Sinyal", group="MACD Ayarları")
+
+// Görünüm Ayarları
+arrow_dist_input = input.float(2.5, "Okların Uzaklığı (%)", step=0.5, group="Görünüm") 
+text_dist_input  = input.float(0.5, "Yazıların Uzaklığı (%)", step=0.1, group="Görünüm")
+
+// --- TABLO AYARLARI ---
+t_note_1 = input.string("5M", "5M Notu", group="Tablo 5M Ayarları"), t_bg_1 = input.color(color.new(color.orange, 0), "5M Arka Plan", group="Tablo 5M Ayarları"), t_txt_1 = input.color(color.white, "5M Yazı Rengi", group="Tablo 5M Ayarları")
+t_note_2 = input.string("15M", "15M Notu", group="Tablo 15M Ayarları"), t_bg_2 = input.color(color.new(color.orange, 0), "15M Arka Plan", group="Tablo 15M Ayarları"), t_txt_2 = input.color(color.white, "15M Yazı Rengi", group="Tablo 15M Ayarları")
+t_note_3 = input.string("1H", "1H Notu", group="Tablo 1H Ayarları"), t_bg_3 = input.color(color.new(color.orange, 0), "1H Arka Plan", group="Tablo 1H Ayarları"), t_txt_3 = input.color(color.white, "1H Yazı Rengi", group="Tablo 1H Ayarları")
+t_note_4 = input.string("2H", "2H Notu", group="Tablo 2H Ayarları"), t_bg_4 = input.color(color.new(color.orange, 0), "2H Arka Plan", group="Tablo 2H Ayarları"), t_txt_4 = input.color(color.white, "2H Yazı Rengi", group="Tablo 2H Ayarları")
+t_note_5 = input.string("4H", "4H Notu", group="Tablo 4H Ayarları"), t_bg_5 = input.color(color.new(color.orange, 0), "4H Arka Plan", group="Tablo 4H Ayarları"), t_txt_5 = input.color(color.white, "4H Yazı Rengi", group="Tablo 4H Ayarları")
+t_note_6 = input.string("GÜN", "GÜN Notu", group="Tablo GÜN Ayarları"), t_bg_6 = input.color(color.new(color.orange, 0), "GÜN Arka Plan", group="Tablo GÜN Ayarları"), t_txt_6 = input.color(color.white, "GÜN Yazı Rengi", group="Tablo GÜN Ayarları")
+t_note_7 = input.string("HFT", "HFT Notu", group="Tablo HFT Ayarları"), t_bg_7 = input.color(color.new(color.orange, 0), "HFT Arka Plan", group="Tablo HFT Ayarları"), t_txt_7 = input.color(color.white, "HFT Yazı Rengi", group="Tablo HFT Ayarları")
+
+// --- 2. TEKNİK HESAPLAMALAR ---
+ap = hlc3 
+esa = ta.ema(ap, n1), d = ta.ema(math.abs(ap - esa), n1)
+ci = (ap - esa) / (0.015 * d), tci = ta.ema(ci, n2)
+wt1 = tci, wt2 = ta.sma(wt1, 4)
+[macdLine, signalLine, _] = ta.macd(close, fast_length, slow_length, signal_smoothing)
+
+sma5=ta.sma(close, 5), sma8=ta.sma(close, 8), sma13=ta.sma(close, 13), sma21=ta.sma(close, 21), sma34=ta.sma(close, 34), sma55=ta.sma(close, 55), sma89=ta.sma(close, 89), sma144=ta.sma(close, 144)
+smaTrend = (sma5 + sma8 + sma13 + sma21 + sma34) / 5
+trendColor = close > smaTrend ? color.new(color.lime, 5) : color.new(color.red, 5)
+
+high_pivot = ta.pivothigh(high, pp_period, pp_period)
+low_pivot  = ta.pivotlow(low, pp_period, pp_period)
+
+var float last_resistance = na
+var float tp1_val = na, var float tp2_val = na, var float tp3_val = na
+var float[] res_history = array.new_float(0)
+
+if not na(high_pivot)
+    last_resistance := high_pivot
+    array.push(res_history, high_pivot)
+    if array.size(res_history) > 30 
+        array.remove(res_history, 0)
+
+if barstate.islast
+    float[] sorted_res = array.copy(res_history)
+    array.sort(sorted_res, order.ascending)
+    int found = 0
+    float last_added_val = close 
+    for i = 0 to array.size(sorted_res) - 1
+        r = array.get(sorted_res, i)
+        if r > (last_added_val * tp_min_dist)
+            if found == 0
+                tp1_val := r
+                last_added_val := r
+            else if found == 1
+                tp2_val := r
+                last_added_val := r
+            else if found == 2
+                tp3_val := r
+                last_added_val := r
+            found += 1
+
+// --- 3. SİNYAL MANTIĞI ---
+wt_cross_up   = ta.crossover(wt1, wt2) and wt1 < osLevel
+macd_cross_up = ta.crossover(macdLine, signalLine)
+s_trend_buy   = ta.crossover(close, smaTrend)
+bool s_breakout_buy = ta.crossover(close, last_resistance) and close > last_resistance
+
+bool s_wt_active    = wt_cross_up or (ta.barssince(wt_cross_up) <= 10 and not ta.crossunder(wt1, wt2))
+bool s_macd_active  = macd_cross_up or (ta.barssince(macd_cross_up) <= 10)
+bool s_trend_active = s_trend_buy
+
+color combo_color = color.lime
+string combo_emoji = "🔥", string combo_details = ""
+int al_sayac = 0
+
+if s_wt_active
+    al_sayac += 1
+    combo_details += "WT "
+if s_macd_active
+    al_sayac += 1
+    combo_details += "MACD "
+if s_trend_active
+    al_sayac += 1
+    combo_details += "TRND "
+if s_breakout_buy
+    al_sayac += 1
+    combo_details += "KIRILIM"
+
+if s_wt_active and s_trend_active and not s_macd_active
+    combo_color := color.yellow 
+else if s_macd_active and s_trend_active and not s_wt_active
+    combo_color := color.green  
+else if s_wt_active and s_macd_active
+    combo_color := color.blue   
+
+bool s_kombo_buy = al_sayac >= 2
+cross55 = ta.crossover(smaTrend, sma55), cross89 = ta.crossover(smaTrend, sma89)
+since55 = ta.barssince(cross55)
+bool s_strong_buy = cross89 and since55 > 0 and since55 <= 6
+bool s_cross_buy  = ta.crossover(smaTrend, sma55) 
+bool s_cross34_buy = ta.crossover(smaTrend, sma34) 
+
+var bool wt_sell_ready = false
+if ta.crossunder(wt1, wt2) and wt1 > obLevel
+    wt_sell_ready := true
+
+bool s_wt_sell = false
+if wt_sell_ready and ta.crossunder(close, sma34)
+    s_wt_sell := true
+    wt_sell_ready := false
+
+if s_strong_buy or s_kombo_buy
+    wt_sell_ready := false
+
+// --- 4. GRAFİK ÜSTÜ ÇİZİMLER ---
+float arrow_pos = low * (1 - (arrow_dist_input / 100)), float sell_arrow_pos = high * (1 + (arrow_dist_input / 100))
+float text_pos  = arrow_pos * (1 - (text_dist_input / 100)), float sell_text_pos = sell_arrow_pos * (1 + (text_dist_input / 100))
+
+plotshape(s_strong_buy ? arrow_pos : na, "Mega Al Ok", shape.triangleup, location.absolute, #00ffea, size=size.tiny)
+if s_strong_buy
+    label.new(bar_index, text_pos, "🚀\n GÜÇLÜ\n AL\n 89", xloc.bar_index, yloc.price, color.new(color.black, 100), label.style_label_up, #00ffea, size.small)
+
+plotshape(s_kombo_buy and not s_strong_buy ? arrow_pos : na, "Kombo Al Ok", shape.triangleup, location.absolute, combo_color, size=size.tiny)
+if s_kombo_buy and not s_strong_buy
+    label.new(bar_index, text_pos, combo_emoji + " \n(" + combo_details + ")", xloc.bar_index, yloc.price, color.new(color.black, 100), label.style_label_up, combo_color, size.small)
+
+plotshape(s_breakout_buy and not s_kombo_buy and not s_strong_buy ? arrow_pos : na, "Kırılım Ok", shape.triangleup, location.absolute, color.rgb(241, 2, 241), size=size.tiny)
+if s_breakout_buy and not s_kombo_buy and not s_strong_buy
+    label.new(bar_index, text_pos, "💎\n DİRENÇ", xloc.bar_index, yloc.price, color.new(color.black, 100), label.style_label_up, color.rgb(241, 2, 241), size.small)
+
+var label l_tp1 = na, var line n_tp1 = na
+var label l_tp2 = na, var line n_tp2 = na
+var label l_tp3 = na, var line n_tp3 = na
+
+if show_labels and barstate.islast
+    if not na(tp1_val)
+        label.delete(l_tp1), line.delete(n_tp1)
+        n_tp1 := line.new(bar_index - 30, tp1_val, bar_index + 10, tp1_val, color=color.new(color.blue, 30), width=1, style=line.style_dashed)
+        l_tp1 := label.new(bar_index + 10, tp1_val, "🎯 HEDEF 1: " + str.tostring(tp1_val, "#.##"), color=color.new(color.blue, 20), textcolor=color.white, style=label.style_label_left, size=size.tiny)
+    if not na(tp2_val)
+        label.delete(l_tp2), line.delete(n_tp2)
+        n_tp2 := line.new(bar_index - 30, tp2_val, bar_index + 10, tp2_val, color=color.new(color.orange, 30), width=1, style=line.style_dashed)
+        l_tp2 := label.new(bar_index + 10, tp2_val, "🎯 HEDEF 2: " + str.tostring(tp2_val, "#.##"), color=color.new(color.orange, 20), textcolor=color.white, style=label.style_label_left, size=size.tiny)
+    if not na(tp3_val)
+        label.delete(l_tp3), line.delete(n_tp3)
+        n_tp3 := line.new(bar_index - 30, tp3_val, bar_index + 10, tp3_val, color=color.new(color.red, 30), width=1, style=line.style_dashed)
+        l_tp3 := label.new(bar_index + 10, tp3_val, "🎯 HEDEF 3: " + str.tostring(tp3_val, "#.##"), color=color.new(color.red, 20), textcolor=color.white, style=label.style_label_left, size=size.tiny)
+
+plotshape(s_cross_buy and not s_kombo_buy and not s_strong_buy and not s_breakout_buy ? arrow_pos : na, "Kesişim Ok 55", shape.triangleup, location.absolute, color.white, size=size.tiny)
+if s_cross_buy and not s_kombo_buy and not s_strong_buy and not s_breakout_buy
+    label.new(bar_index, text_pos, "SMA\n 55", xloc.bar_index, yloc.price, color.new(color.black, 100), label.style_label_up, color.white, size.small)
+
+plotshape(s_cross34_buy and not s_cross_buy and not s_kombo_buy and not s_strong_buy and not s_breakout_buy ? arrow_pos : na, "Kesişim Ok 34", shape.triangleup, location.absolute, color.yellow, size=size.tiny)
+if s_cross34_buy and not s_cross_buy and not s_kombo_buy and not s_strong_buy and not s_breakout_buy
+    label.new(bar_index, text_pos, "SMA\n 34", xloc.bar_index, yloc.price, color.new(color.black, 100), label.style_label_up, color.yellow, size.small)
+
+plotshape(s_wt_sell ? sell_arrow_pos : na, "Sat Ok", shape.triangledown, location.absolute, color.yellow, size=size.tiny)
+if s_wt_sell
+    label.new(bar_index, sell_text_pos, "SAT", xloc.bar_index, yloc.price, color.new(color.black, 100), label.style_label_down, color.yellow, size.small)
+
+plot(smaTrend, "ÖMER Trend", color=trendColor, linewidth=3)
+plot(sma34, "SMA 34", color=color.yellow, linewidth=2) 
+plot(sma55, "SMA 55", color=color.white, linewidth=2)
+plot(sma89, "SMA 89", color=color.aqua, linewidth=2) 
+plot(sma144, "SMA 144", color=color.purple, linewidth=2)
+
+// --- 5. DESTEK VE DİRENÇ ---
+var line r_line = na, var line s_line = na, var label r_lab = na, var label s_lab = na
+if not na(high_pivot)
+    line.delete(r_line), label.delete(r_lab)
+    r_line := line.new(bar_index[pp_period], high_pivot, bar_index, high_pivot, color=color.new(#ff00ea, 0), width=2, extend=extend.right)
+    if show_labels
+        r_lab := label.new(bar_index + 5, high_pivot, "Direnç: " + str.tostring(high_pivot, "#.##"), style=label.style_label_left, textcolor=color.white, color=color.rgb(241, 2, 241), size=size.small)
+
+if not na(low_pivot)
+    line.delete(s_line), label.delete(s_lab)
+    s_line := line.new(bar_index[pp_period], low_pivot, bar_index, low_pivot, color=color.new(color.lime, 20), width=2, extend=extend.right)
+    if show_labels
+        s_lab := label.new(bar_index + 5, low_pivot, "Destek: " + str.tostring(low_pivot, "#.##"), style=label.style_label_left, textcolor=color.white, color=color.green, size=size.tiny)
+
+// --- 6. FIBONACCI ---
+float hH = ta.highest(high, fibo_lookback), lL =ta.lowest(low, fibo_lookback)
+if barstate.islast
+    lvls = array.from(0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0)
+    clrs = array.from(color.white, color.blue, color.red, color.orange, color.yellow, color.purple, color.white)
+    for i = 0 to 6
+        v = lL + ((hH - lL) * array.get(lvls, i))
+        line.new(bar_index[fibo_lookback], v, bar_index + 10, v, color=array.get(clrs, i), style=line.style_dashed)
+        label.new(bar_index + 10, v, str.tostring(array.get(lvls, i)*100, "#.#") + "% (" + str.tostring(v, "#.##") + ")", style=label.style_none, textcolor=array.get(clrs, i), size=size.small)
+
+// --- 7. MTF TABLO ---
+f_get_mtf() =>
+    [_s, _d] = ta.supertrend(3.0, 10), _e = ta.ema(close, 21), _sma144_mtf = ta.sma(close, 144)
+    [ml, sl, _] = ta.macd(close, 12, 26, 9), _hp = ta.pivothigh(high, 20, 20)
+    var float _last_r = na
+    if not na(_hp)
+        _last_r := _hp
+    _is_break = ta.crossover(close, _last_r)
+    _break_txt = _is_break ? "KIRILDI" : (close > _last_r ? "ÜST✅" : "ALT🔻")
+    _since_break = ta.barssince(_is_break)
+    _durum = _d < 0 ? (close > _e ? "GÇL AL" : "AL") : (close < _e ? "GÇL SAT" : "SAT")
+    _dCol  = _d < 0 ? color.new(color.green, close > _e ? 0 : 40) : color.new(color.red, close < _e ? 0 : 40)
+    _mSig = ta.barssince(ta.crossover(ml, sl)) <= 3 ? "KESİŞİM ↑" : ta.barssince(ta.crossunder(ml, sl)) <= 3 ? "KESİŞİM ↓" : "-"
+    _fP = (close - ta.lowest(low, 200)) / math.max(1, ta.highest(high, 200) - ta.lowest(low, 200))
+    _144Durum = close > _sma144_mtf ? "ÜST" : "ALT", _144Renk = close > _sma144_mtf ? color.green : color.red
+    [_durum, _break_txt, _since_break, _fP, _mSig, _dCol, _144Durum, _144Renk]
+
+[d5, bT5, bS5, f5, m5, c5, s144_5, col144_5] = request.security(syminfo.tickerid, "5", f_get_mtf())
+[d15, bT15, bS15, f15, m15, c15, s144_15, col144_15] = request.security(syminfo.tickerid, "15", f_get_mtf())
+[d60, bT60, bS60, f60, m60, c60, s144_60, col144_60] = request.security(syminfo.tickerid, "60", f_get_mtf())
+[d120, bT120, bS120, f120, m120, c120, s144_120, col144_120] = request.security(syminfo.tickerid, "120", f_get_mtf())
+[d240, bT240, bS240, f240, m240, c240, s144_240, col144_240] = request.security(syminfo.tickerid, "240", f_get_mtf())
+[dD, bTD, bSD, fD, mD, cD, s144_D, col144_D] = request.security(syminfo.tickerid, "D", f_get_mtf())
+[dW, bTW, bSW, fW, mW, cW, s144_W, col144_W] = request.security(syminfo.tickerid, "W", f_get_mtf())
+
+var table panel = table.new(position.bottom_center, 7, 6, border_width=1)
+f_fill_p(_col, _per, _dur, _breakT, _breakS, _fp, _ms, _dc, _s144, _c144, _customNote, _bgColor, _txtColor) =>
+    table.cell(panel, _col, 0, _customNote, bgcolor=_bgColor, text_color=_txtColor, text_size=size.tiny)
+    table.cell(panel, _col, 1, _per + "\nF%" + str.tostring(_fp * 100, "#.#"), bgcolor=#3e29f8, text_color=color.white, text_size=size.tiny)
+    table.cell(panel, _col, 2, _dur, bgcolor=_dc, text_color=color.white, text_size=size.tiny)
+    table.cell(panel, _col, 3, _breakT + "\nM:" + str.tostring(_breakS), bgcolor=color.black, text_color=(_breakT=="KIRILDI"?color.lime:color.white), text_size=size.tiny)
+    table.cell(panel, _col, 4, _ms, bgcolor=(_ms=="KESİŞİM ↑"?color.teal:_ms=="KESİŞİM ↓"?color.maroon:color.black), text_color=color.white, text_size=size.tiny)
+    table.cell(panel, _col, 5, "144:" + _s144, bgcolor=color.black, text_color=_c144, text_size=size.tiny)
+
+if barstate.islast
+    f_fill_p(0, "5M", d5, bT5, bS5, f5, m5, c5, s144_5, col144_5, t_note_1, t_bg_1, t_txt_1)
+    f_fill_p(1, "15M", d15, bT15, bS15, f15, m15, c15, s144_15, col144_15, t_note_2, t_bg_2, t_txt_2)
+    f_fill_p(2, "1H", d60, bT60, bS60, f60, m60, c60, s144_60, col144_60, t_note_3, t_bg_3, t_txt_3)
+    f_fill_p(3, "2H", d120, bT120, bS120, f120, m120, c120, s144_120, col144_120, t_note_4, t_bg_4, t_txt_4)
+    f_fill_p(4, "4H", d240, bT240, bS240, f240, m240, c240, s144_240, col144_240, t_note_5, t_bg_5, t_txt_5)
+    f_fill_p(5, "GÜN", dD, bTD, bSD, fD, mD, cD, s144_D, col144_D, t_note_6, t_bg_6, t_txt_6)
+    f_fill_p(6, "HFT", dW, bTW, bSW, fW, mW, cW, s144_W, col144_W, t_note_7, t_bg_7, t_txt_7)
+
+// --- 8. YENİ ÖZELLİK: GELİŞMİŞ DİNAMİK MUM KANALI ---
+var float ch_high  = na, var float ch_low   = na, var int   ch_start = na
+var float last_upper_high = na, var float last_upper_low  = na
+var float last_lower_high = na, var float last_lower_low  = na
+var box ch_box = na, var label ch_info = na
+var box next_high_box = na, var box next_low_box = na
+var label pred_u_top_lab = na, var label pred_u_bot_lab = na
+var label pred_l_top_lab = na, var label pred_l_bot_lab = na
+
+if show_candle_channel 
+    if na(ch_high) or na(ch_low)
+        ch_high := high[1], ch_low := low[1], ch_start := bar_index - 1
+    
+    if high > ch_high 
+        last_lower_high := ch_high, last_lower_low := ch_low
+        ch_high := high[1], ch_low := low[1], ch_start := bar_index - 1
+    else if low < ch_low
+        last_upper_high := ch_high, last_upper_low := ch_low
+        ch_high := high[1], ch_low := low[1], ch_start := bar_index - 1
+
+    if barstate.islast
+        float channel_range = ch_high - ch_low, int pred_length = 15 
+        box.delete(ch_box), label.delete(ch_info)
+        ch_box := box.new(ch_start, ch_high, bar_index + 5, ch_low, bgcolor=channel_color, border_color=channel_border_color, border_style=line.style_dashed)
+        ch_info := label.new(ch_start, ch_high, "AKTİF KANAL", color=color.new(color.black, 100), textcolor=channel_border_color, style=label.style_label_down, size=size.small)
+
+        box.delete(next_high_box), box.delete(next_low_box)
+        label.delete(pred_u_top_lab), label.delete(pred_u_bot_lab)
+        label.delete(pred_l_top_lab), label.delete(pred_l_bot_lab)
+
+        // Üst Öngörü Kutusu ve Yazıları
+        float u_bot = ch_high 
+        float u_top = not na(last_upper_high) and last_upper_high > ch_high ? last_upper_high : ch_high + channel_range
+        next_high_box := box.new(bar_index, u_top, bar_index + pred_length, u_bot, bgcolor=upper_pred_color, border_color=upper_pred_color, border_style=line.style_dotted)
+        
+        // ETİKETLERİ KUTUNUN ÜSTÜNE/DIŞINA ALDIK (style_label_down ve style_label_up kullanarak)
+        pred_u_top_lab := label.new(bar_index + 10, u_top, "Üst Öngörü Tavan: " + str.tostring(u_top, "#.##"), color=color.new(color.black, 100), textcolor=upper_txt_color, style=label.style_label_down, size=size.tiny)
+        pred_u_bot_lab := label.new(bar_index + 10, u_bot, "Üst Öngörü Taban: " + str.tostring(u_bot, "#.##"), color=color.new(color.black, 100), textcolor=upper_txt_color, style=label.style_label_up, size=size.tiny)
+
+        // Alt Öngörü Kutusu ve Yazıları
+        float l_top = ch_low
+        float l_bot = not na(last_lower_low) and last_lower_low < ch_low ? last_lower_low : ch_low - channel_range
+        next_low_box := box.new(bar_index, l_top, bar_index + pred_length, l_bot, bgcolor=lower_pred_color, border_color=lower_pred_color, border_style=line.style_dotted)
+
+        // ETİKETLERİ KUTUNUN ALTINA/DIŞINA ALDIK
+        pred_l_top_lab := label.new(bar_index + 10, l_top, "Alt Öngörü Tavan: " + str.tostring(l_top, "#.##"), color=color.new(color.black, 100), textcolor=lower_txt_color, style=label.style_label_down, size=size.tiny)
+        pred_l_bot_lab := label.new(bar_index + 10, l_bot, "Alt Öngörü Taban: " + str.tostring(l_bot, "#.##"), color=color.new(color.black, 100), textcolor=lower_txt_color, style=label.style_label_up, size=size.tiny)
+
+// --- 9. HİSSE LİSTELERİ VE RADAR ---
+f_get_t(g, i) =>
+    t = ""
+    if g == "XYLDZ 1"
+        t := i==1?"ADESE":i==2?"TRALT":i==3?"AKENR":i==4?"AKFGY":i==5?"AKFYE":i==6?"AKGRT":i==7?"AKMGY":i==8?"ALARK":i==9?"ALBRK":i==10?"ALFAS":i==11?"ALGYO":i==12?"ALKA":i==13?"ALKIM":i==14?"ALTNY":i==15?"ALVES":i==16?"ANELE":i==17?"ARDYZ":i==18?"ARENA":i==19?"ARSAN":i==20?"ASGYO":i==21?"ASUZU":i==22?"ATAKP":i==23?"AVPGY":i==24?"AYDEM":i==25?"AYGAZ":i==26?"BAGFS":""
+    else if g == "XYLDZ 2"
+        t := i==1?"BANVT":i==2?"BARMA":i==3?"BASGZ":i==4?"BAYRK":i==5?"BEGYO":i==6?"BERA":i==7?"BEYAZ":i==8?"BIENY":i==9?"BINHO":i==10?"BIOEN":i==11?"BOBET":i==12?"BORLS":i==13?"BRISA":i==14?"BSOKE":i==15?"BTCIM":i==16?"BUCIM":i==17?"BURCE":i==18?"CANTE":i==19?"CATES":i==20?"CEMTS":i==21?"CIMSA":i==22?"CONSE":i==23?"CVKMD":i==24?"CWENE":i==25?"DAPGM":i==26?"DCTTR":i==27?"DERHL":i==28?"DESPC":i==29?"DEVA":i==30?"DGGYO":i==31?"DMRGD":""
+    else if g == "XYLDZ 3"
+        t := i==1?"DMSAS":i==2?"DOAS":i==3?"DOHOL":i==4?"DOFER":i==5?"EBEBK":i==6?"ECILC":i==7?"ECZYT":i==8?"EGEEN":i==9?"EGGUB":i==10?"EGPRO":i==11?"EGSER":i==12?"EKGYO":i==13?"EKOS":i==14?"ELITE":i==15?"ENTRA":i==16?"ERSU":i==17?"ESEN":i==18?"EUPWR":i==19?"EUREN":i==20?"EYGYO":i==21?"FADE":i==22?"FORTE":i==23?"FZLGY":i==24?"GENIL":i==25?"GESAN":i==26?"GIPTA":""
+    else if g == "XYLDZ 4"
+        t := i==1?"GLRYH":i==2?"GOLTS":i==3?"GOZDE":i==4?"GRSEL":i==5?"GSDHO":i==6?"GUBRF":i==7?"HATSN":i==8?"HEDEF":i==9?"HEKTS":i==10?"HOROZ":i==11?"HRKET":i==12?"HUNER":i==13?"ICBCT":i==14?"IZENR":i==15?"INDES":i==16?"INFO":i==17?"INGRM":i==18?"INVES":i==19?"ISGYO":i==20?"ISMEN":i==21?"IZMDC":i==22?"KAPLM":i==23?"KAREL":i==24?"KAYSE":i==25?"KCHOL":i==26?"KFEIN":""
+    else if g == "XYLDZ 5"
+        t := i==1?"KLSYN":i==2?"KLSER":i==3?"KLRHO":i==4?"KMPUR":i==5?"KNFRT":i==6?"KONKA":i==7?"KONYA":i==8?"KORDS":i==9?"KARSN":i==10?"KRVGD":i==11?"KSTUR":i==12?"KTLEV":i==13?"KTSKR":i==14?"KUTPO":i==15?"KUVVA":i==16?"LIDER":i==17?"LKMNH":i==18?"LOGO":i==19?"LUKSK":i==20?"MAALT":i==21?"MAGEN":i==22?"MAVI":i==23?"MEDTR":i==24?"MEGAP":i==25?"MIATK":i==26?"MOGAN":i==27?"MPARK":i==28?"MRGYO":i==29?"MSGYO":i==30?"MTRKS":""
+    else if g == "XYLDZ 6"
+        t := i==1?"MZHLD":i==2?"NETAS":i==3?"NTGAZ":i==4?"OBAMS":i==5?"OBASE":i==6?"ODAS":i==7?"ONCSM":i==8?"ORCAY":i==9?"ORGE":i==10?"OTKAR":i==11?"OYAKC":i==12?"OZGYO":i==13?"OZKGY":i==14?"PASEU":i==15?"PATEK":i==16?"PGSUS":i==17?"PNLSN":i==18?"POLHO":i==19?"POLTK":i==20?"PRKAB":i==21?"PRKME":i==22?"PSGYO":i==23?"QUAGR":i==24?"REEDR":i==25?"RNPOL":i==26?"RTALB":i==27?"SAMAT":i==28?"SAYAS":i==29?"SDTTR":i==30?"SELEC":""
+    else if g == "XYLDZ 7"
+        t := i==1?"SKYLP":i==2?"SISE":i==3?"SKBNK":i==4?"SMRTG":i==5?"SNGYO":i==6?"TABGD":i==7?"TARKM":i==8?"TERA":i==9?"TKFEN":i==10?"TMSN":i==11?"TOASO":i==12?"TRGYO":i==13?"TTKOM":i==14?"TTRAK":i==15?"TUKAS":i==16?"TUPRS":i==17?"VAKBN":i==18?"VKFYO":i==19?"YEOTK":i==20?"YKBNK":i==21?"YYLGD":""
+    else if g == "ANA 1"
+        t := i==1?"ADEL":i==2?"AFYON":i==3?"AGESA":i==4?"AGYO":i==5?"AKSGY":i==6?"ALCTL":i==7?"ANGEN":i==8?"ARZUM":i==9?"AVHOL":i==10?"AYEN":i==11?"AZTEK":i==12?"BAKAB":i==13?"BORSK":i==14?"BOSSA":i==15?"BRKSN":i==16?"BRLSM":i==17?"BRMEN":i==18?"BURVA":i==19?"BVSAN":i==20?"CELHA":i==21?"CEMAS":i==22?"CEOEM":i==23?"CLEBI":i==24?"CRDFA":i==25?"CVKMD":i==26?"DAGI":i==27?"DERIM":i==28?"DITAS":i==29?"EDATA":i==30?"EGEPO":i==31?"EGEPRO":""
+    else if g == "ANA 2"
+        t := i==1?"ESCOM":i==2?"ETILR":i==3?"FENER":i==4?"FLAP":i==5?"FONET":i==6?"FRIGO":i==7?"GEDIK":i==8?"GEDZA":i==9?"GENTS":i==10?"GEREL":i==11?"GMTAS":i==12?"GRNYO":i==13?"GSDDE":i==14?"GZNMI":i==15?"HDFGS":i==16?"HTTBT":i==17?"HUBVC":i==18?"INVEO":i==19?"ISFIN":i==20?"ISGSY":i==21?"LRSHO":i==22?"IZFAS":i==23?"IZINV":i==24?"KATMR":i==25?"BESLR":i==26?"KGYO":i==27?"KIMMR":i==28?"KLGYO":i==29?"KLMSN":i==31?"KNFRT":i==32?"KRONT":""
+    else if g == "ANA 3"
+        t := i==1?"KRTEK":i==2?"KUYAS":i==3?"LIDFA":i==4?"LINK":i==5?"LUKSK":i==6?"MAKIM":i==7?"MAKTK":i==8?"MANAS":i==9?"MARTI":i==10?"MEGAP":i==11?"MERCN":i==12?"MERKO":i==13?"BLUME":i==14?"MNDRS":i==15?"MNDTR":i==16?"NATEN":i==17?"NIBAS":i==18?"NUGYO":i==19?"OSMEN":i==20?"OYLUM":i==21?"OZSUB":i==22?"PAMEL":i==23?"PARSN":i==24?"PCILT":i==25?"PEKGY":i==26?"PENGD":i==27?"PINSU":i==28?"PKART":i==29?"PRZMA":i==30?"SANEL":i==31?"SANFM":i==32?"SEKFK":""
+    else if g == "ANA 4"
+        t := i==1?"SEYKM":i==2?"SILVR":i==3?"SNICA":i==4?"SONME":i==5?"SRVGY":i==6?"SUMAS":i==7?"SUNTK":i==8?"SURGY":i==9?"TEKTU":i==10?"TGSAS":i==11?"TLMAN":i==12?"TMPOl":i==13?"TSGYO":i==14?"TUCLK":i==15?"TURGG":i==16?"UFUK":i==17?"ULAS":i==18?"ULUSE":i==19?"ULUUN":i==20?"UMPAS":i==21?"USAK":i==22?"VBTYZ":i==23?"VERTU":i==24?"VERUS":i==25?"TCKRC":i==26?"YGGYO":i==27?"YGYO":i==28?"YKSLN":i==29?"YONGA":i==30?"YUNSA":""
+    else if g == "ÖMER"
+        t := i==1?"HALKB":i==2?"GARAN":i==3?"ISCTR":i==4?"VAKBN":i==5?"YKBNK":i==6?"AKBNK":i==7?"TRALT":i==8?"TRENJ":i==9?"TRMET":i==10?"THYAO":i==11?"TAVHL":i==12?"KCHOL":i==13?"AGHOL":i==14?"BIMAS":i==15?"MGROS":i==16?"ASTOR":i==17?"GWIND":i==18?"AKSEN":i==19?"FROTO":i==20?"ASELS":i==21?"ULKER":i==22?"TURSG":i==23?"ANSGR":i==24?"ANHYT":i==25?"TCELL":i==26?"AHGAZ":i==27?"ENKAI":i==28?"EREGL":i==29?"KRDMA":i==30?"KRDMB":i==31?"KRDMD":i==32?"OYAKC":""
+    t
+
+f_radar_logic(look) =>
+    int k_idx = -1, int s_idx = -1, int c_idx = -1, int c34_idx = -1, int b_idx = -1
+    string k_emoji = ""
+    float score = 0.0
+    for i = 0 to look
+        if s_strong_buy[i] and s_idx == -1
+            s_idx := i
+            score += 500 
+        if s_kombo_buy[i] and k_idx == -1
+            k_idx := i
+            score += 250
+            if s_wt_active[i] and s_trend_active[i] and not s_macd_active[i]
+                k_emoji := "🟡"
+            else if s_macd_active[i] and s_trend_active[i] and not s_wt_active[i]
+                k_emoji := "🟢"
+            else if s_wt_active[i] and s_macd_active[i]
+                k_emoji := "🔵"
+            else
+                k_emoji := "🔥"
+        if s_breakout_buy[i] and b_idx == -1
+            b_idx := i
+            score += 150
+        if s_cross_buy[i] and c_idx == -1
+            c_idx := i
+            score += 100
+        if s_cross34_buy[i] and c34_idx == -1
+            c34_idx := i
+            score += 80
+    _fP = (close - ta.lowest(low, 200)) / math.max(1, ta.highest(high, 200) - ta.lowest(low, 200))
+    [k_idx, s_idx, c_idx, c34_idx, b_idx, _fP, score, k_emoji]
+
+f_pad(_t) =>
+    _s = _t
+    if str.length(_t) < 6
+        for i = 1 to (6 - str.length(_t))
+            _s += " "
+    _s
+
+if barstate.islast
+    var string radarTxt = "🚀 TARAMA LİSTESİ 🚀\n"
+    var tickerLines = array.new_string(0)
+    var tickerScores = array.new_float(0)
+    for i = 1 to 35
+        sym = f_get_t(groupInput, i)
+        if sym != ""
+            [k, s, c, c34, b, fP, sc, k_emo] = request.security("BIST:" + sym, timeframe.period, f_radar_logic(radar_lookback), ignore_invalid_symbol=true)
+            if (s != -1 or k != -1 or c != -1 or c34 != -1 or b != -1) and fP < 0.98
+                string lineTxt = "🔸 " + f_pad(sym) + ": "
+                if s != -1
+                    lineTxt += "🚀(" + str.tostring(s) + ") "
+                if k != -1
+                    lineTxt += k_emo + "(" + str.tostring(k) + ") "
+                if b != -1
+                    lineTxt += "💎(" + str.tostring(b) + ") "
+                if c != -1
+                    lineTxt += "⚪(" + str.tostring(c) + ") "
+                if c34 != -1
+                    lineTxt += "⚪34(" + str.tostring(c34) + ") "
+                array.push(tickerLines, lineTxt)
+                array.push(tickerScores, sc)
+    
+    if array.size(tickerScores) > 1
+        for i = 0 to array.size(tickerScores) - 2
+            for j = i + 1 to array.size(tickerScores) - 1
+                if array.get(tickerScores, i) < array.get(tickerScores, j)
+                    tempS = array.get(tickerScores, i)
+                    array.set(tickerScores, i, array.get(tickerScores, j))
+                    array.set(tickerScores, j, tempS)
+                    tempL = array.get(tickerLines, i)
+                    array.set(tickerLines, i, array.get(tickerLines, j))
+                    array.set(tickerLines, j, tempL)
+    
+    string finalContent = ""
+    if array.size(tickerLines) > 0
+        for i = 0 to array.size(tickerLines) - 1
+            finalContent += array.get(tickerLines, i) + "\n"
+    else
+        finalContent := "Güçlü Sinyal Yok..."
+    
+    label.new(bar_index + offset_x, close, radarTxt + finalContent, color=color.new(#001aff, 47), textcolor=color.white, style=label.style_label_left, size=size.normal, text_font_family=font.family_monospace)
